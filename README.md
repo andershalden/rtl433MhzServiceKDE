@@ -12,6 +12,7 @@ systemctl --user status telldus-rtl.service
 ```
 
 The service stores its database at `~/.local/state/telldus-rtl/readings.db` and listens only on `127.0.0.1:8765`.
+The default schedule is configured in `config.ini`: one 10-second capture every 30 minutes. The service installer copies it to `~/.config/telldus-rtl/config.ini`; edit `interval_minutes` there to change the schedule.
 
 To use a different rtl_433 command, edit the `ExecStart` command in the installed unit, for example:
 
@@ -27,7 +28,7 @@ Reload after changing it with `systemctl --user daemon-reload && systemctl --use
 ./install-widget.sh
 ```
 
-Add **Telldus Temperature** from the Plasma widget chooser. It refreshes every 30 seconds and displays each sensor ID, temperature, and humidity when available.
+Add **Telldus Temperature** from the Plasma widget chooser. It refreshes every 30 minutes and displays only Air (ID 231) and Water (ID 232).
 
 ## Test without an SDR
 

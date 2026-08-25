@@ -2,9 +2,11 @@
 """Store Fineoffset-TelldusProove readings from rtl_433 for a KDE widget."""
 
 import argparse
+import configparser
 import json
 import logging
 import os
+import shlex
 import signal
 import sqlite3
 import subprocess
@@ -16,6 +18,7 @@ from typing import Any
 
 MODEL = "Fineoffset-TelldusProove"
 DEFAULT_DB = Path.home() / ".local/state/telldus-rtl/readings.db"
+DEFAULT_CONFIG = Path.home() / ".config/telldus-rtl/config.ini"
 DEFAULT_COMMAND = ["rtl_433", "-F", "json"]
 
 
@@ -128,15 +131,17 @@ def run(args: argparse.Namespace) -> None:
 
     def read_rtl() -> None:
         while not stop.is_set():
-            logging.info("starting: %s", " ".join(args.command))
-            process = subprocess.Popen(args.command, stdout=subprocess.PIPE, text=True, bufsize=1)
+            command = args.command + ["-T", str(args.capture_seconds)]
+            logging.info("starting scheduled capture: %s", " ".join(command))
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, text=True, bufsize=1)
             process_holder[0] = process
             assert process.stdout is not None
-            consume(process.stdout, store)
+            stored = consume(process.stdout, store)
+            process.wait()
             process_holder[0] = None
             if not stop.is_set():
-                logging.warning("rtl_433 exited; restarting in 5 seconds")
-                stop.wait(5)
+                logging.info("capture complete; stored %d matching readings", stored)
+                stop.wait(args.interval_minutes * 60)
 
     reader = threading.Thread(target=read_rtl, name="rtl-433-reader", daemon=True)
     reader.start()
@@ -146,13 +151,22 @@ def run(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", type=Path, default=Path(os.environ.get("TELLDUS_DB", DEFAULT_DB)))
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--config", type=Path, default=Path(os.environ.get("TELLDUS_CONFIG", DEFAULT_CONFIG)))
+    parser.add_argument("--db", type=Path)
+    parser.add_argument("--port", type=int)
     parser.add_argument("--input-file", type=Path, help="Read JSON lines from a file instead of rtl_433")
     parser.add_argument("--once", action="store_true", help="Exit after reading --input-file")
     parser.add_argument("command", nargs=argparse.REMAINDER, help="rtl_433 command, after --")
     args = parser.parse_args()
-    args.command = args.command or DEFAULT_COMMAND
+    config = configparser.ConfigParser()
+    config.read(args.config)
+    service = config["service"] if config.has_section("service") else {}
+    args.interval_minutes = max(1, int(service.get("interval_minutes", "30")))
+    args.capture_seconds = max(1, int(service.get("capture_seconds", "10")))
+    args.db = args.db or Path(service.get("database", str(DEFAULT_DB))).expanduser()
+    args.port = args.port or int(service.get("port", "8765"))
+    configured_command = shlex.split(service.get("rtl_433_command", "rtl_433 -F json"))
+    args.command = args.command or configured_command or DEFAULT_COMMAND
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     return args
 

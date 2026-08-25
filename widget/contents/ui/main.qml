@@ -8,8 +8,8 @@ import org.kde.plasma.plasmoid
 PlasmoidItem {
     id: root
     width: 300
-    height: Math.max(150, 72 + readings.length * 76)
-    property var readings: []
+    height: 150
+    property var readings: ({})
     property string errorText: ""
 
     function refresh() {
@@ -20,7 +20,13 @@ PlasmoidItem {
                 return
             if (request.status === 200) {
                 var response = JSON.parse(request.responseText)
-                root.readings = response.readings
+                var selected = {}
+                for (var index = 0; index < response.readings.length; index++) {
+                    var reading = response.readings[index]
+                    if ((reading.id === "231" || reading.id === "232") && selected[reading.id] === undefined)
+                        selected[reading.id] = reading.temperature_C
+                }
+                root.readings = selected
                 root.errorText = ""
             } else {
                 root.errorText = i18n("Service unavailable")
@@ -30,13 +36,13 @@ PlasmoidItem {
     }
 
     Component.onCompleted: refresh()
-    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refresh() }
+    Timer { interval: 1800000; running: true; repeat: true; onTriggered: root.refresh() }
 
     compactRepresentation: Kirigami.Icon {
         source: "weather-clear"
         PlasmaCore.ToolTipArea {
             anchors.fill: parent
-            mainText: root.readings.length > 0 ? root.readings[0].temperature_C.toFixed(1) + " °C" : i18n("No readings")
+            mainText: root.readings["231"] !== undefined ? Number(root.readings["231"]).toFixed(1) + " °C" : i18n("No readings")
         }
     }
 
@@ -52,26 +58,30 @@ PlasmoidItem {
         }
         PlasmaComponents3.Label { visible: root.errorText !== ""; text: root.errorText; opacity: 0.7 }
         PlasmaComponents3.Label {
-            visible: root.errorText === "" && root.readings.length === 0
+            visible: root.errorText === "" && root.readings["231"] === undefined && root.readings["232"] === undefined
             text: i18n("Waiting for a reading...")
             opacity: 0.7
         }
-        Repeater {
-            model: root.readings
-            delegate: RowLayout {
+        RowLayout {
+            visible: root.readings["231"] !== undefined
+            Layout.fillWidth: true
+            PlasmaComponents3.Label { text: i18n("Air"); Layout.preferredWidth: 60; opacity: 0.7 }
+            PlasmaComponents3.Label {
+                text: Number(root.readings["231"]).toFixed(1) + " °C"
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
                 Layout.fillWidth: true
-                PlasmaComponents3.Label { text: "#" + modelData.id; Layout.preferredWidth: 48; opacity: 0.7 }
-                PlasmaComponents3.Label {
-                    text: Number(modelData.temperature_C).toFixed(1) + " °C"
-                    font.pixelSize: 22
-                    font.weight: Font.DemiBold
-                    Layout.fillWidth: true
-                }
-                PlasmaComponents3.Label {
-                    visible: modelData.humidity !== null
-                    text: modelData.humidity === null ? "" : Number(modelData.humidity).toFixed(0) + " %"
-                    opacity: 0.75
-                }
+            }
+        }
+        RowLayout {
+            visible: root.readings["232"] !== undefined
+            Layout.fillWidth: true
+            PlasmaComponents3.Label { text: i18n("Water"); Layout.preferredWidth: 60; opacity: 0.7 }
+            PlasmaComponents3.Label {
+                text: Number(root.readings["232"]).toFixed(1) + " °C"
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
             }
         }
         Item { Layout.fillHeight: true }
