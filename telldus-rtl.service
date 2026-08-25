@@ -1,0 +1,13 @@
+[Unit]
+Description=Store Fineoffset Telldus Proove readings
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/telldus-rtl
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

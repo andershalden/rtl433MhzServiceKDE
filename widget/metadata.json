@@ -1,0 +1,12 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPlugin": {
+        "Authors": [{ "Email": "", "Name": "Telldus" }],
+        "Description": "Temperature readings from Fineoffset Telldus Proove sensors",
+        "Id": "com.telldus.temperature",
+        "Name": "Telldus Temperature",
+        "Version": "1.0",
+        "Website": ""
+    }
+}
